@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Gilda+Display&display=swap" rel="stylesheet">
+
+	<title>qwrkysearch</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/input.css') }}">
+  <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
+</head>
+
+<body>
+  <div class="container mt-4">
+    <div class="vstack gap-3 align-items-center">
+      <img src="{{ url_for('static', filename='images/logo.png') }}" style="width: 12rem; height: 12rem;" />
+      <h1>qwrkysearch</h1>
+
+      <div class="input-group" style="max-width: 64rem;">
+        <input type="text" class="form-control rounded-0" style="width: 36rem;" placeholder="Search..." aria-label="Search" id="searchinput">
+        <select class="form-select rounded-0" name="category" id="category" onchange="search(event)">
+          <option value="laws">Legislation</option>
+          <option value="cli">Case Law</option>
+          <option value="eo">Executive Orders</option>
+        </select>
+        <button class="btn btn-outline-secondary rounded-0" onclick="search()">
+          <i class="bi bi-search"></i>
+        </button>
+      </div>
+
+      <div class="d-flex justify-content-center gap-4 flex-wrap" style="max-width: 64rem;">
+        <div class="d-flex align-items-center gap-2">
+          <label for="sort" class="form-label mb-0">Sort:</label>
+          <select name="sort" id="sort" class="form-select form-select-sm rounded-0" onchange="sortItems(event.target.value)" style="width: 12rem;">
+            <option value="none">none</option>
+            <option value="asc_title">alphabet (a-z)</option>
+            <option value="desc_title">alphabet (z-a)</option>
+            <option value="asc_edited">editing (newest)</option>
+            <option value="desc_edited">editing (oldest)</option>
+          </select>
+        </div>
+
+        <!-- <div class="form-check d-flex align-items-center gap-2">
+          <input class="form-check-input" type="checkbox" id="repealed">
+          <label class="form-check-label mb-0" for="repealed">Show repealed</label>
+        </div> -->
+      </div>
+
+      <span id="loader" class="loader" style="display: none;"></span>
+      <div style="max-width: 64rem;" id="results" class="vstack gap-3">
+      </div>
+    </div>
+  </div>
+
+
+	<script>
+    let items = []
+
+    function createResultBlock(title, url) {
+      const template = document.createElement('template')
+      template.innerHTML = `
+        <div>
+          <a href=${url} target="_blank">
+            <h2>${title}</h2>
+          </a>
+        </div>
+      `.trim()
+      return template.content.firstElementChild
+    }
+
+    function toggleLoading(toggle) {
+      const loader = document.getElementById("loader")
+      if (toggle != null) {
+        if (toggle) {
+          loader.style.display = "block"
+        } else {
+          loader.style.display = "none"
+        }
+      } else {
+        if (loader.style.display == "none") {
+          loader.style.display = "block"
+        } else {
+          loader.style.display = "none"
+        }
+      }
+    }
+
+    function search(event) {
+      const input = document.getElementById("searchinput")
+      const category = event == null ? document.getElementById("category") : event.target
+
+      if (!input.value || !category.value) {
+        return
+      }
+
+      const sort = document.getElementById("sort")
+      const results = document.getElementById("results")
+      results.innerHTML = ""
+
+      cat = "Legislation"
+      switch (category.value) {
+      case "cli":
+        cat = "Case Law"
+        break
+
+      case "eo":
+        cat = "Executive Orders"
+        break
+      }
+
+      toggleLoading(true)
+      fetch(`/proxy?q=${input.value}&category=${cat}`)
+      .then(res => res.json())
+      .then(function(out) {
+        toggleLoading(false)
+        items = out
+
+        if (items != null && items.length > 0) {
+          sortItems(sort.value)
+        } else {
+          results.textContent = "No results found."
+        }
+        
+      })
+      .catch(function(err) {
+        toggleLoading(false)
+        results.textContent = "An error occured."
+        console.log(err)
+      });
+    }
+
+    function sortItems(value) {
+      if (value == null || items.length == 0) {
+        return
+      }
+
+      const results = document.getElementById("results")
+      results.innerHTML = ""
+      let copy = [...items]
+
+      switch (value) {
+        case "asc_title":
+          copy.sort((arr1, arr2) => arr1[0].localeCompare(arr2[0]))
+          break
+
+        case "desc_title":
+          copy.sort((arr1, arr2) => arr2[0].localeCompare(arr1[0]))
+          break
+
+        case "asc_edited":
+          copy.sort((arr1, arr2) => Date.parse(arr2[2]) - Date.parse(arr1[2]))
+          break
+
+        case "desc_edited":
+          copy.sort((arr1, arr2) => Date.parse(arr1[2]) - Date.parse(arr2[2]))
+          break
+      }
+
+      for (const [title, url, touched] of copy) {
+        results.appendChild(createResultBlock(title, url))
+      }
+    }
+	</script>
+</body>
+</html>
