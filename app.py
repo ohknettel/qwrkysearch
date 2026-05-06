@@ -37,7 +37,7 @@ def proxy():
 			if cmcontinue:
 				params["gcmcontinue"] = cmcontinue
 
-			res = requests.get("https://qwrky.dev/mediawiki/api.php", params=params)
+			res = requests.get("http://37.27.89.34/mediawiki/api.php", params=params)
 			data = res.json()
 			pages.extend(data["query"].get("pages", []))
 			cmcontinue = data.get("continue", {}).get("gcmcontinue")
